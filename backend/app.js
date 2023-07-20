@@ -11,10 +11,12 @@ app.use(cookieParser());
 
 // Route Imports d
 const user = require("./routes/userRoute");
-const tale = require("./routes/taleRoute");
+const candidate = require("./routes/candidatureRoute");
+const jobs = require("./routes/jobOfferRoute");
 
 app.use("/api/v1", user);
-app.use("/api/v1", tale);
+app.use("/api/v1", candidate);
+app.use("/api/v1", jobs);
 
 // Middleware for Errors
 app.use(errorMiddleware);
