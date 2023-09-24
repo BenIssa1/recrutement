@@ -3,12 +3,14 @@
 const ErrorHander = require("../utils/errorhander");
 const catchAsyncErrors = require("../middleware/catchAsyncErrors");
 const User = require("../models/userModel");
+const StudentInfos = require("../models/StudentInfosModel");
 const sendToken = require("../utils/jwtTokens");
 const sendEmail = require("../utils/sendEmail");
 const crypto = require("crypto");
 
 // Register a User
 exports.registerUser = catchAsyncErrors(async (req, res, next) => {
+  /* User data from body */
   const { name, email, password, role } = req.body;
 
   const user = await User.create({
@@ -22,7 +24,34 @@ exports.registerUser = catchAsyncErrors(async (req, res, next) => {
     },
   });
 
-  sendToken(user, 201, res);
+  if (user) {
+    /* Student Infos data from body */
+    const { prenom, numero, numero_rue, ville, region, code_postal } = req.body;
+
+    await StudentInfos.create({
+      nom: name,
+      prenom,
+      numero,
+      numero_rue,
+      ville,
+      region,
+      code_postal,
+      cni: req.files.cni[0].originalname,
+      bulletin: req.files.bulletin[0].originalname,
+      user: user._id
+    });
+
+    /* sendToken(user, 201, res); */
+
+    res.status(200).json({
+      success: true,
+      user
+  }); 
+  } else {
+    return next(new ErrorHander("Error c'est produite lors de la creation de l'utilisateur", 400));
+  }
+
+   
 });
 
 // Login User
