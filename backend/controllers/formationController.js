@@ -170,7 +170,7 @@ exports.getFormations = catchAsyncErrors(async (req, res, next) => {
 
 // Get all formations(student)
 exports.getStudentFormation = catchAsyncErrors(async (req, res, next) => {
-    const formations = await Formation.find({ user: req.user.id });
+    const formations = await Formation.find({ user: req.user.id }).populate('studentInfo');
   
     res.status(200).json({
       success: true,
