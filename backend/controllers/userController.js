@@ -59,7 +59,7 @@ exports.registerUser = catchAsyncErrors(async (req, res, next) => {
 
       /* Verifie si l'etudiant est deja inscrite a la formation */
       if (formationExist && formationExist.montantPaye != 0) {
-        return next(new ErrorHander("Tu es deja inscris a la formation", 400));
+        return next(new ErrorHander("Tu es déjà inscrit à la formation.", 400));
       }
       /* Verifie si l'etudiant est deja inscrite a la formation mais n'a pas encore paye */
       else if (formationExist && formationExist.montantPaye == 0) {
@@ -88,11 +88,11 @@ exports.registerUser = catchAsyncErrors(async (req, res, next) => {
         }
       }
     } else {
-      return next(new ErrorHander("Error c'est produite lors de la creation des sauvegades des informations de l'utilisateur", 400));
+      return next(new ErrorHander("L'erreur s'est produite lors de la création des sauvegardes des informations de l'utilisateur.", 400));
     }
 
   } else {
-    return next(new ErrorHander("Error c'est produite lors de la creation de l'utilisateur", 400));
+    return next(new ErrorHander("L'erreur s'est produite lors de la création de l'utilisateur.", 400));
   }
 
 
@@ -105,19 +105,19 @@ exports.loginUser = catchAsyncErrors(async (req, res, next) => {
   // checking if user has given password and email both
 
   if (!email || !password) {
-    return next(new ErrorHander("Please Enter Email & Password", 400));
+    return next(new ErrorHander("Veuillez entrer votre e-mail et votre mot de passe.", 400));
   }
 
   const user = await User.findOne({ email }).select("+password");
 
   if (!user) {
-    return next(new ErrorHander("Invalid email or password", 401));
+    return next(new ErrorHander("Email ou mot de passe invalide.", 401));
   }
 
   const isPasswordMatched = await user.comparePassword(password);
 
   if (!isPasswordMatched) {
-    return next(new ErrorHander("Invalid email or password", 401));
+    return next(new ErrorHander("Email ou mot de passe invalide.", 401));
   }
 
   sendToken(user, 200, res);
@@ -141,7 +141,7 @@ exports.forgotPassword = catchAsyncErrors(async (req, res, next) => {
   const user = await User.findOne({ email: req.body.email });
 
   if (!user) {
-    return next(new ErrorHander("User not found", 404));
+    return next(new ErrorHander("Utilisateur non trouvé", 404));
   }
 
   // Get ResetPassword Token
@@ -155,18 +155,18 @@ exports.forgotPassword = catchAsyncErrors(async (req, res, next) => {
 
   const resetPasswordUrl = `http://localhost:5173/reset-password/${resetToken}`;
 
-  const message = `Your password reset token is :- \n\n ${resetPasswordUrl} \n\nIf you have not requested this email then, please ignore it.`;
+  const message = `Votre jeton de réinitialisation de mot de passe est :- \n\n ${resetPasswordUrl} \n\nSi vous n'avez pas demandé cet e-mail, veuillez l'ignorer.`;
 
   try {
     await sendEmail({
       email: user.email,
-      subject: `Ecommerce Password Recovery`,
+      subject: `Itschools`,
       message,
     });
 
     res.status(200).json({
       success: true,
-      message: `Email sent to ${user.email} successfully`,
+      message: `Email envoyé à ${user.email} avec succès`,
     });
   } catch (error) {
     user.resetPasswordToken = undefined;
@@ -194,14 +194,14 @@ exports.resetPassword = catchAsyncErrors(async (req, res, next) => {
   if (!user) {
     return next(
       new ErrorHander(
-        "Reset Password Token is invalid or has been expired",
+        "Le jeton de réinitialisation du mot de passe n’est pas valide ou a expiré",
         400
       )
     );
   }
 
   if (req.body.password !== req.body.confirmPassword) {
-    return next(new ErrorHander("Password does not password", 400));
+    return next(new ErrorHander("Le mot de passe n'est pas un mot de passe", 400));
   }
 
   user.password = req.body.password;
