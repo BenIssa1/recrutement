@@ -22,7 +22,7 @@ router.post("/reneval/student/formation", isAuthenticatedUser, renevalStudentFor
 // Verification Formation Payment
 router.post("/verification/formation/payment", verificationFormationPayment);
 // Verification Formation Payment
-router.get("/formation/list", isAuthenticatedUser, getFormations);
+router.get("/formation/list/:formation", isAuthenticatedUser, getFormations);
 // Student Formation list
 router.get("/student/formation/list", isAuthenticatedUser, getStudentFormation);
 

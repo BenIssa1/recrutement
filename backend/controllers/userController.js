@@ -30,16 +30,14 @@ exports.registerUser = catchAsyncErrors(async (req, res, next) => {
   if (user) {
     /* Student Infos data from body */
     const { prenom, numero, numero_rue, ville, region, code_postal,
-      formation, 
-          type_formation, 
-          montant, 
-          montantAPaye, 
-          montantPaye, 
-          nombreEcheance, 
-          nombreEcheancePaye 
+      formation,
+      type_formation,
+      montant,
+      montantAPaye,
+      montantPaye,
+      nombreEcheance,
+      nombreEcheancePaye
     } = req.body;
-
-    console.log(type_formation, montant)
 
     const studentInfo = await StudentInfos.create({
       nom: name,
@@ -49,44 +47,45 @@ exports.registerUser = catchAsyncErrors(async (req, res, next) => {
       ville,
       region,
       code_postal,
-      cni: req.files.cni[0].originalname,
-      bulletin: req.files.bulletin[0].originalname,
+      cni: req.files.cni[0].filename,
+      bulletin: req.files.bulletin[0].filename,
       user: user._id
     });
 
     if (studentInfo) {
 
       /* Get Formation */
-      const formationExist = await Formation.findOne({user:  user._id, formation});
+      const formationExist = await Formation.findOne({ user: user._id, formation });
 
       /* Verifie si l'etudiant est deja inscrite a la formation */
       if (formationExist && formationExist.montantPaye != 0) {
-          return next(new ErrorHander("Tu es deja inscris a la formation", 400));
-      } 
+        return next(new ErrorHander("Tu es deja inscris a la formation", 400));
+      }
       /* Verifie si l'etudiant est deja inscrite a la formation mais n'a pas encore paye */
       else if (formationExist && formationExist.montantPaye == 0) {
-          /* Call paymentFunction */
-          paymentFunction(montantAPaye, studentInfo, formation, res)
-      } 
+        /* Call paymentFunction */
+        paymentFunction(montantAPaye, studentInfo, formation, res)
+      }
       /* Verifie si l'etudiant n'est deja inscrite a la formation */
       else {
-          /* Create formation */
-          const formationCreate = await Formation.create({
-              formation,
-              type_formation,
-              montant,
-              montantPaye,
-              nombreEcheance,
-              nombreEcheancePaye,
-              user:  user._id,
-              studentInfo: studentInfo._id
-          });
-      
-          /* Verifie si la formation est bien cree */
-          if (formationCreate) {
-              /* Call paymentFunction */
-              paymentFunction(montantAPaye, studentInfo, formation, res)
-          } 
+        /* Create formation */
+        const formationCreate = await Formation.create({
+          formation,
+          type_formation,
+          montant,
+          montantPaye,
+          nombreEcheance,
+          nombreEcheancePaye,
+          montantAPayeParEcheance: montantAPaye,
+          user: user._id,
+          studentInfo: studentInfo._id
+        });
+
+        /* Verifie si la formation est bien cree */
+        if (formationCreate) {
+          /* Call paymentFunction */
+          paymentFunction(montantAPaye, studentInfo, formation, res)
+        }
       }
     } else {
       return next(new ErrorHander("Error c'est produite lors de la creation des sauvegades des informations de l'utilisateur", 400));
@@ -96,7 +95,7 @@ exports.registerUser = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHander("Error c'est produite lors de la creation de l'utilisateur", 400));
   }
 
-   
+
 });
 
 // Login User
@@ -150,9 +149,11 @@ exports.forgotPassword = catchAsyncErrors(async (req, res, next) => {
 
   await user.save({ validateBeforeSave: false });
 
-  const resetPasswordUrl = `${req.protocol}://${req.get(
+  /* const resetPasswordUrl = `${req.protocol}://${req.get(
     "host"
-  )}/api/v1/password/reset/${resetToken}`;
+  )}/api/v1/password/reset/${resetToken}`; */
+
+  const resetPasswordUrl = `http://localhost:5173/reset-password/${resetToken}`;
 
   const message = `Your password reset token is :- \n\n ${resetPasswordUrl} \n\nIf you have not requested this email then, please ignore it.`;
 
@@ -209,12 +210,16 @@ exports.resetPassword = catchAsyncErrors(async (req, res, next) => {
 
   await user.save();
 
-  sendToken(user, 200, res);
+  res.status(200).json({
+    success: true,
+  });
+
+  /* sendToken(user, 200, res); */
 });
 
 // Get User Detail
 exports.getUserDetails = catchAsyncErrors(async (req, res, next) => {
-  const user = await User.findById( user._id);
+  const user = await User.findById(user._id);
 
   res.status(200).json({
     success: true,
@@ -332,64 +337,106 @@ exports.deleteUser = catchAsyncErrors(async (req, res, next) => {
   });
 });
 
+
+// update Student Profile
+exports.updateProfileStudent = catchAsyncErrors(async (req, res, next) => {
+  const newUserData = {
+    nom: req.body.nom,
+    prenom: req.body.prenom,
+    numero: req.body.numero,
+    numero_rue: req.body.numero_rue,
+    ville: req.body.ville,
+    region: req.body.region,
+    code_postal: req.body.code_postal,
+  };
+
+
+  const studentInfo = await StudentInfos.find({ user: req.user.id });
+
+  if (studentInfo) {
+    await StudentInfos.findByIdAndUpdate(studentInfo[0]._id, newUserData, {
+      new: true,
+      runValidators: true,
+      useFindAndModify: false,
+    });
+
+    res.status(200).json({
+      success: true,
+    });
+  }
+
+});
+
+// Get Student Detail
+exports.getStudentDetails = catchAsyncErrors(async (req, res, next) => {
+
+  const studentInfoDetails = await StudentInfos.find({ user: req.user.id });
+
+  res.status(200).json({
+    success: true,
+    studentInfoDetails: studentInfoDetails[0],
+  });
+
+});
+
 /* Paymet */
 const paymentFunction = (montantAPaye, studentInfo, formation, res) => {
   /* Informations du cinetpay */
   let data = JSON.stringify({
-      "apikey": "859867072650304c5f00440.22075151",
-      "site_id": "821343", 
-      "transaction_id":  Math.floor(Math.random() * 100000000).toString(), //
-      "amount": montantAPaye, 
-      "currency": "XOF",
-      "alternative_currency": "",
-      "description": "Inscription a une formation",
-      "customer_id": studentInfo.user._id,
-      "customer_name": studentInfo.user.name,
-      "customer_surname": studentInfo.prenom,
-      "customer_email": studentInfo.user.email,
-      "customer_phone_number": studentInfo.numero,
-      "customer_address": studentInfo.ville,
-      "customer_city": studentInfo.ville,
-      "customer_country": "CM",
-      "customer_state": "CM",
-      "customer_zip_code": "065100",
-      "notify_url": "http://localhost:5000/api/v1/verification/formation/payment",
-      "return_url": "http://localhost:5000/api/v1/verification/formation/payment",
-      "channels": "ALL",
-      "metadata": JSON.stringify({formation, user: studentInfo.user._id}),
-      "lang": "FR",
-      "invoice_data": {
-        "Reste à payer":"25 000fr",
-        "Matricule":"24OPO25",
-        "Annee-scolaire":"2020-2021"
-      }
+    "apikey": "859867072650304c5f00440.22075151",
+    "site_id": "821343",
+    "transaction_id": Math.floor(Math.random() * 100000000).toString(), //
+    "amount": montantAPaye,
+    "currency": "XOF",
+    "alternative_currency": "",
+    "description": "Inscription a une formation",
+    "customer_id": studentInfo.user._id,
+    "customer_name": studentInfo.user.name,
+    "customer_surname": studentInfo.prenom,
+    "customer_email": studentInfo.user.email,
+    "customer_phone_number": studentInfo.numero,
+    "customer_address": studentInfo.ville,
+    "customer_city": studentInfo.ville,
+    "customer_country": "CM",
+    "customer_state": "CM",
+    "customer_zip_code": "065100",
+    "notify_url": "http://localhost:5000/api/v1/verification/formation/payment",
+    "return_url": "http://localhost:5000/api/v1/verification/formation/payment",
+    "channels": "ALL",
+    "metadata": JSON.stringify({ formation, user: studentInfo.user._id }),
+    "lang": "FR",
+    "invoice_data": {
+      "Reste à payer": "25 000fr",
+      "Matricule": "24OPO25",
+      "Annee-scolaire": "2020-2021"
+    }
   });
 
   /* config data */
   let config = {
-      method: 'post',
-      url: 'https://api-checkout.cinetpay.com/v2/payment',
-      headers: { 
-        'Content-Type': 'application/json'
-      },
-      data : data 
-    };
+    method: 'post',
+    url: 'https://api-checkout.cinetpay.com/v2/payment',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    data: data
+  };
 
   /* call api cinetpay payment */
   Axios(config)
-  .then(async function (response) {
+    .then(async function (response) {
       console.log((response.data));
 
       /* Response data */
       res.status(200).json({
-          success: true,
-          message: 'Message' 
-      }); 
+        success: true,
+        message: 'Message'
+      });
 
       /* Ouvre la page de paiement */
       openurl.open(response.data.data.payment_url)
-  })
-  .catch(function (error) {
+    })
+    .catch(function (error) {
       console.log(error);
-  });
+    });
 }

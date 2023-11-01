@@ -16,6 +16,8 @@ const {
   getSingleUser,
   updateUserRole,
   deleteUser,
+  getStudentDetails,
+  updateProfileStudent
 } = require("../controllers/userController");
 const { isAuthenticatedUser, authorizeRoles } = require("../middleware/auth");
 
@@ -23,24 +25,46 @@ const router = express.Router();
 
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 
-const storage = multer.diskStorage({  
+const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, path.resolve('backend', 'public', 'images'));
-    /* cb(null, path.join(__dirname, '/public/images/')); */
-    
+
   },
   filename: function (req, file, cb) {
-    cb(null, Date.now() + file.originalname)
+    cb(null, req.body.email + '_' + file.fieldname + '_' + file.originalname)
   }
 })
-  
-const upload = multer({ storage: storage })
+
+const upload = multer({
+  storage: storage, fileFilter: function (req, file, cb) {
+    /* filename */
+    const fieldName = req.body.email + '_' + file.fieldname + '_' + file.originalname
+    /* file chemin */
+    const filePath = path.resolve('backend', 'public', 'images', fieldName)
+    /* Verify file exist */
+    let fileExist = fs.existsSync(filePath)
+
+    if (fileExist) {
+      req.body.erroFi = 'Error file exist'
+      return cb(null, false, new Error('Error file exist'))
+    }
+
+    cb(null, true)
+  }
+})
+
+// Get file upload
+router.route("/image/:fileName").get((req, res) => {
+  console.log(path.resolve('backend', 'public', 'images'))
+  res.sendFile(path.resolve('backend', 'public', 'images', req.params.fileName));
+})
 
 // Register User
 router.post("/register", upload.fields([
-  {name: 'cni'},
-  {name: 'bulletin'},
+  { name: 'cni' },
+  { name: 'bulletin' },
 ]), registerUser);
 // LOgin User
 router.route("/login").post(loginUser);
@@ -69,5 +93,13 @@ router
   .get(isAuthenticatedUser, authorizeRoles("admin"), getSingleUser)
   .put(isAuthenticatedUser, authorizeRoles("admin"), updateUserRole)
   .delete(isAuthenticatedUser, authorizeRoles("admin"), deleteUser);
+
+// Get details student info
+router
+  .route("/student/details")
+  .get(isAuthenticatedUser, getStudentDetails)
+
+// Upadate Student Info
+router.route("/student/update").put(isAuthenticatedUser, updateProfileStudent);
 
 module.exports = router;

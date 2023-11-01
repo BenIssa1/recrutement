@@ -28,6 +28,11 @@ const FormationSchema = new mongoose.Schema(
         required: false,
         default: 0
     },
+    montantAPayeParEcheance: {
+        type: Number,
+        required: true,
+        default: 0
+    },
     nombreEcheance: {
         type: Number,
         required: true,
